@@ -1,0 +1,63 @@
+[project]
+name = "biomed-retrieval-jax"
+version = "0.1.0"
+description = "Verified biomedical literature retrieval in JAX, built on eqx-zoo (research demo, not for clinical use)"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Zane", email = "zane.n.neave@gmail.com" }]
+requires-python = ">=3.12"
+keywords = ["jax", "equinox", "retrieval", "semantic-search", "biomedical", "embeddings"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Indexing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "eqx-zoo>=0.3.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/xquantize/biomed-retrieval-jax"
+Repository = "https://github.com/xquantize/biomed-retrieval-jax"
+Issues = "https://github.com/xquantize/biomed-retrieval-jax/issues"
+
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
+]
+
+[tool.uv]
+constraint-dependencies = [
+    # Match eqx-zoo, whose tests always resolve huggingface-hub < 2 (released transformers
+    # versions require it). This only affects our lockfile, not the published metadata.
+    "huggingface-hub<2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["checkpoint(name): needs the named pretrained checkpoint (deselect with -m 'not checkpoint')"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "D"]
+ignore = ["F722"]  # jaxtyping shape strings like "seq dim" aren't Python expressions
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
