@@ -1,7 +1,7 @@
 name: Upstream
 
 # A weekly check against the newest release of every dependency, ignoring uv.lock, so that
-# breaking changes upstream (eqx-zoo, JAX, ...) are caught before users run into them.
+# breaking changes upstream (eqx-zoo, JAX, Transformers, ...) are caught before users run into them.
 on:
   schedule:
     - cron: "0 18 * * 0"  # Sundays, 18:00 UTC
@@ -24,9 +24,11 @@ jobs:
       - name: Versions under test
         run: >
           uv pip list | grep -iE
-          "^(eqx-zoo|jax|jaxlib|equinox|jaxtyping|huggingface-hub|safetensors|numpy) "
+          "^(eqx-zoo|jax|jaxlib|equinox|jaxtyping|numpy|tokenizers|torch|transformers|sentence-transformers|huggingface-hub|safetensors) "
       - name: Fast tests
         run: uv run --frozen pytest -q
+      - name: Checkpoint tests (both poolings and pairs, with fresh references)
+        run: uv run --frozen pytest -q -rA --checkpoint medcpt-article --checkpoint pubmedbert-embeddings
       - name: Open or update an issue on failure
         if: failure()
         env:

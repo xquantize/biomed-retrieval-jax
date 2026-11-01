@@ -43,7 +43,11 @@ name = "biomed-retrieval-jax"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "equinox" },
     { name = "eqx-zoo" },
+    { name = "jax" },
+    { name = "jaxtyping" },
+    { name = "numpy" },
     { name = "tokenizers" },
 ]
 
@@ -59,7 +63,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "eqx-zoo", specifier = ">=0.3.5" },
+    { name = "equinox", specifier = ">=0.12" },
+    { name = "eqx-zoo", specifier = ">=0.3.6" },
+    { name = "jax", specifier = ">=0.5" },
+    { name = "jaxtyping", specifier = ">=0.3" },
+    { name = "numpy", specifier = ">=1.26" },
     { name = "tokenizers", specifier = ">=0.21" },
 ]
 
@@ -126,7 +134,7 @@ wheels = [
 
 [[package]]
 name = "eqx-zoo"
-version = "0.3.5"
+version = "0.3.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "equinox" },
@@ -135,9 +143,9 @@ dependencies = [
     { name = "jaxtyping" },
     { name = "safetensors" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5c/3a/981beaf59ee8f9da6799e681bb895a58a0792257233d8154c6fee0355d2e/eqx_zoo-0.3.5.tar.gz", hash = "sha256:ac5f98b8c92ea05fe95457f7e61576e62c389c7ea785b12ba557c648bfc30f15", size = 36125, upload-time = "2026-10-26T23:24:45.478Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/20/fc/5356978ed391e8f753268b33927bf4579661cf25e33c49c730dd9877877e/eqx_zoo-0.3.6.tar.gz", hash = "sha256:68a2160c0ea1d0617f28063414034265a91d730d7190478dd03cddd7fecbc3c3", size = 37876, upload-time = "2026-11-01T22:51:48.107Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/4e/eecb6f38ea8210caefded7b29114cc22dd08f1339001e0869c65029254cb/eqx_zoo-0.3.5-py3-none-any.whl", hash = "sha256:77f17993002dafe68c0d416d157b3db8d6e632961003c07f587213c7e3310eda", size = 42411, upload-time = "2026-10-26T23:24:44.168Z" },
+    { url = "https://files.pythonhosted.org/packages/21/79/c8ba2d1bda201ef3af5ae7a92a53380e4ab70ae6e2ee1bc1e20e84bec37a/eqx_zoo-0.3.6-py3-none-any.whl", hash = "sha256:baf71e73c7bb0dcb43207b8747aab8ae2b3c982d7e97143c50cc9bc8af6e96e0", size = 49970, upload-time = "2026-11-01T22:51:46.495Z" },
 ]
 
 [[package]]

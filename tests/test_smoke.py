@@ -28,3 +28,11 @@ def test_registry_imports_only_the_standard_library():
     assert imported <= sys.stdlib_module_names, (
         f"non-stdlib imports: {imported - sys.stdlib_module_names}"
     )
+
+
+def test_registry_matches_package_encoders():
+    from support.registry import ENCODER_CHECKPOINTS
+
+    from biomed_retrieval_jax.encoders import ENCODERS
+
+    assert ENCODER_CHECKPOINTS == {name: spec.repo for name, spec in ENCODERS.items()}

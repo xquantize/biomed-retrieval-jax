@@ -37,8 +37,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
-      - name: Unit tests (no downloads)
+      - name: Unit tests and tiny models (no downloads)
         run: uv run ${{ matrix.uv-args }} pytest -v -m "not checkpoint"
+      - name: Versions under test
+        if: always()
+        run: >
+          uv pip list | grep -iE
+          "^(eqx-zoo|jax|jaxlib|equinox|jaxtyping|numpy|tokenizers|torch|transformers|sentence-transformers|huggingface-hub|safetensors) "
 
   checkpoints:
     name: list checkpoints
@@ -72,9 +77,15 @@ jobs:
           path: |
             ~/.cache/huggingface
             reference
-          key: checkpoint-${{ matrix.name }}-${{ hashFiles('tests/support/reference.py') }}
+          # References depend on how they are captured and on the encoders' settings.
+          key: checkpoint-${{ matrix.name }}-${{ hashFiles('tests/support/reference.py', 'src/biomed_retrieval_jax/encoders.py') }}
       - name: Tests for ${{ matrix.name }}
-        run: uv run --locked pytest -v --checkpoint ${{ matrix.name }}
+        run: uv run --locked pytest -v -rA --checkpoint ${{ matrix.name }}
+      - name: Versions under test
+        if: always()
+        run: >
+          uv pip list | grep -iE
+          "^(eqx-zoo|jax|jaxlib|equinox|jaxtyping|numpy|tokenizers|torch|transformers|sentence-transformers|huggingface-hub|safetensors) "
 
   tests-passed:
     name: tests passed
