@@ -20,6 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "eqx-zoo>=0.3.5",
+    "tokenizers>=0.21",
 ]
 
 [project.urls]
@@ -35,6 +36,9 @@ build-backend = "uv_build"
 dev = [
     "pytest>=9.1.1",
     "ruff>=0.16.9",
+    "sentence-transformers>=3",
+    "torch>=2.14.0",
+    "transformers>=4.51.3",
 ]
 
 [tool.uv]
@@ -43,6 +47,19 @@ constraint-dependencies = [
     # versions require it). This only affects our lockfile, not the published metadata.
     "huggingface-hub<2",
 ]
+# CI runs on x86-64 Linux, where the PyTorch CPU index versions torch wheels `X.Y.Z+cpu` and
+# plain `X.Y.Z` has no wheel. Requiring that platform makes every resolution, including
+# `--resolution lowest-direct`, skip versions that cannot be installed there, without pinning
+# torch to one version.
+required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
