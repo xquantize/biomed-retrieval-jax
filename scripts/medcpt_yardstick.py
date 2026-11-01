@@ -10,24 +10,21 @@ Measures, for the query and article encoders:
 - the error of both float32 implementations against float64, and how closely the two float64
   implementations agree, which separates rounding from genuine algorithmic differences.
 
-eqx-zoo computes softmax and norms in float32 with fixed casts, which caps its float64 runs at
-float32 precision. The last measurement temporarily makes those casts use float64 instead.
+PyTorch's float32 self-disagreement underestimates its error (all its float32 code paths share
+it), so float64 is the better yardstick: on arm64, eqx-zoo's float32 embeddings were 3-9 times
+closer to it than PyTorch's, and the two float64 implementations agreed to ~1e-15.
 
 Run with `uv run python scripts/medcpt_yardstick.py`.
 """
 
-import contextlib
 import platform
 
 import equinox as eqx
-import eqx_zoo.layers.attention
-import eqx_zoo.layers.norm
 import jax
 import jax.numpy as jnp
 import numpy as np
 import torch
 from eqx_zoo import Encoder
-from eqx_zoo.layers import cls_pool
 from tokenizers import Tokenizer
 from transformers import AutoModel, AutoTokenizer
 
@@ -86,12 +83,14 @@ def _cls(model, hf, inputs, max_length, pairs):
         return model(**enc).last_hidden_state[:, 0, :].numpy()
 
 
-def _jax_cls(encoder, tok, inputs, pairs, pad_to):
-    """JAX [CLS] embeddings, padded to `pad_to` tokens, or unpadded if `pad_to` is None.
+@eqx.filter_jit
+def _jax_batch(encoder, ids, types, mask):
+    """Embeddings of a batch of token sequences, with `Encoder.embed`."""
+    return jax.vmap(encoder.embed)(ids, mask, types)
 
-    Compiles a fresh function on every call, so that a cached compilation can never hide a
-    change made by `_float32_casts_promoted`.
-    """
+
+def _jax_cls(encoder, tok, inputs, pairs, pad_to):
+    """JAX embeddings, padded to `pad_to` tokens, or unpadded if `pad_to` is None."""
     if pad_to is None:
         tok.no_padding()
     else:
@@ -100,41 +99,13 @@ def _jax_cls(encoder, tok, inputs, pairs, pad_to):
     ids = jnp.array([e.ids for e in encodings])
     types = jnp.array([e.type_ids for e in encodings])
     mask = jnp.array([e.attention_mask for e in encodings], dtype=bool)
-
-    @eqx.filter_jit
-    def batch(encoder, ids, types, mask):
-        return jax.vmap(lambda i, t, m: cls_pool(encoder(i, m, t), m))(ids, types, mask)
-
-    return np.asarray(batch(encoder, ids, types, mask))
-
-
-class _Float64AsFloat32:
-    """`jax.numpy`, except that `float32` is `float64`."""
-
-    float32 = jnp.float64
-
-    def __getattr__(self, name):
-        return getattr(jnp, name)
-
-
-@contextlib.contextmanager
-def _float32_casts_promoted():
-    """Temporarily make eqx-zoo's softmax and norms compute in float64, not float32."""
-    modules = (eqx_zoo.layers.attention, eqx_zoo.layers.norm)
-    saved = [module.jnp for module in modules]
-    for module in modules:
-        module.jnp = _Float64AsFloat32()
-    try:
-        yield
-    finally:
-        for module, original in zip(modules, saved, strict=True):
-            module.jnp = original
+    return np.asarray(_jax_batch(encoder, ids, types, mask))
 
 
 def _report(name, diff, scale):
     """Print the largest absolute difference, and relative to the largest reference value."""
     worst = np.abs(diff).max()
-    print(f"  {name:34s} max |diff| {worst:.2e}, relative {worst / scale:.2e}")
+    print(f"  {name:28s} max |diff| {worst:.2e}, relative {worst / scale:.2e}")
 
 
 def _float32(repo, inputs, max_length, pairs):
@@ -158,7 +129,7 @@ def _float32(repo, inputs, max_length, pairs):
     _report("batched vs alone", batched - alone, scale)
     _report("SDPA vs eager (batched)", batched_sdpa - batched, scale)
 
-    encoder = Encoder.from_pretrained(repo)
+    encoder = Encoder.from_pretrained(repo, pooling="cls")
     tok = _tokenizer(repo, max_length)
     jax_alone = np.concatenate([_jax_cls(encoder, tok, [x], pairs, None) for x in inputs])
     jax_padded = _jax_cls(encoder, tok, inputs, pairs, max_length)
@@ -173,19 +144,14 @@ def _float64(repo, inputs, max_length, pairs, alone, jax_padded):
     hf = AutoTokenizer.from_pretrained(repo)
     model = AutoModel.from_pretrained(repo, dtype=torch.float64, attn_implementation="eager")
     exact = np.concatenate([_cls(model.eval(), hf, [x], max_length, pairs) for x in inputs])
-    encoder = Encoder.from_pretrained(repo, dtype=jnp.float64)
-    tok = _tokenizer(repo, max_length)
-    jax64 = _jax_cls(encoder, tok, inputs, pairs, max_length)
-    with _float32_casts_promoted():
-        jax64_promoted = _jax_cls(encoder, tok, inputs, pairs, max_length)
-    for result in (exact, jax64, jax64_promoted):
-        assert result.dtype == np.float64, result.dtype
+    encoder = Encoder.from_pretrained(repo, dtype=jnp.float64, pooling="cls")
+    jax64 = _jax_cls(encoder, _tokenizer(repo, max_length), inputs, pairs, max_length)
+    assert exact.dtype == jax64.dtype == np.float64, (exact.dtype, jax64.dtype)
     scale = np.abs(exact).max()
     print(f"\n{repo}, against PyTorch float64:")
     _report("PyTorch float32 (alone)", alone - exact, scale)
     _report(f"JAX float32 (padded to {max_length})", jax_padded - exact, scale)
-    _report("JAX float64, eqx-zoo as is", jax64 - exact, scale)
-    _report("JAX float64, float32 casts promoted", jax64_promoted - exact, scale)
+    _report("JAX float64 (padded)", jax64 - exact, scale)
     return exact
 
 
