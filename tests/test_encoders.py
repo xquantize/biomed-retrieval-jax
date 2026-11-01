@@ -12,12 +12,18 @@ from support.registry import ENCODER_CHECKPOINTS
 
 from biomed_retrieval_jax.encoders import ENCODERS, TextEncoder
 
-# Largest float64 error measured on arm64 (relative to the largest reference value): 4.0e-16
-# (MedCPT query), 3.3e-16 (MedCPT article), 4.3e-15 (PubMedBERT embeddings). Provisional:
-# still to be calibrated on x86 CI and checked with a deliberately introduced bug.
+# Our float32 error may be at most this many times PyTorch float32's, both against float64.
+# Measured ratios (largest over batch sizes 1 and 3) for medcpt-query, medcpt-article and
+# pubmedbert-embeddings: 0.17, 0.44, 0.65 on arm64; 0.84, 0.63, 1.00 on x86-64. Both are float32
+# rounding of similar size, so a ratio of 1 would fail by chance; subtle bugs are caught by the
+# float64 test, and this one still caught a LayerNorm epsilon of 1e-6 instead of 1e-12.
+FLOAT32_ERROR_RATIO = 2.0
+# Largest float64 error measured (relative to the largest reference value), same order:
+# 4.0e-16, 3.3e-16, 4.3e-15 on arm64; 3.8e-16, 2.1e-16, 7.1e-15 on x86-64. A LayerNorm epsilon
+# of 1e-10 instead of 1e-12 gives 2e-10, so this separates correct from buggy by four orders.
 FLOAT64_RELATIVE_TOLERANCE = 1e-13
-# Sentence-transformers' float32 error over our float32 PyTorch reference's, measured: 1.07.
-# A wrong pooling would make it roughly 1e4.
+# Sentence-transformers' float32 error over our float32 PyTorch reference's, measured: 1.07 on
+# arm64, 0.90 on x86-64. A wrong pooling would make it roughly 1e4.
 SENTENCE_TRANSFORMERS_ERROR_RATIO = 10.0
 
 
@@ -52,12 +58,15 @@ def test_tokenization_matches_transformers(name, encoder, reference):
 
 
 @pytest.mark.parametrize("batch_size", [1, 3])
-def test_float32_at_least_as_accurate_as_pytorch(name, encoder, reference, batch_size):
+def test_float32_error_comparable_to_pytorch(name, encoder, reference, batch_size):
     exact = reference["embeddings_float64"]
     ours = max_error(encoder.embed(inputs(name), batch_size=batch_size), exact)
     pytorch = max_error(reference["embeddings_float32"], exact)
-    print(f"{name}, batch size {batch_size}: float32 error {ours:.2e}, PyTorch's {pytorch:.2e}")
-    assert ours <= pytorch
+    print(
+        f"{name}, batch size {batch_size}: float32 error {ours:.2e}, PyTorch's {pytorch:.2e}"
+        f" (ratio {ours / pytorch:.2f})"
+    )
+    assert ours <= FLOAT32_ERROR_RATIO * pytorch
 
 
 def test_float64_matches_reference(name, reference, tmp_path):

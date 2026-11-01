@@ -1,7 +1,7 @@
 """Check that the encoder tests catch deliberately introduced bugs, and how small a bug.
 
 Each mutation is checked as `tests/test_encoders.py` would: the float32 test requires an
-error (against float64) no larger than PyTorch float32's, and the float64 test a relative error
+error (against float64) within twice PyTorch float32's, and the float64 test a relative error
 below `FLOAT64_RELATIVE_TOLERANCE`. Uses the references cached in `reference/` by the
 checkpoint tests, so run those first.
 
@@ -32,7 +32,7 @@ jax.config.update("jax_default_matmul_precision", "highest")
 ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
 from support.reference import POOLING, inputs  # noqa: E402
-from test_encoders import FLOAT64_RELATIVE_TOLERANCE  # noqa: E402
+from test_encoders import FLOAT32_ERROR_RATIO, FLOAT64_RELATIVE_TOLERANCE  # noqa: E402
 
 NAMES = ("medcpt-query", "medcpt-article", "pubmedbert-embeddings")
 EPSILONS = (1e-10, 1e-8, 1e-6, 1e-4)
@@ -103,7 +103,7 @@ def main():
     )
     for (name, label), error in float32.items():
         exact = references[name]["embeddings_float64"]
-        bound = _max_error(references[name]["embeddings_float32"], exact)
+        bound = FLOAT32_ERROR_RATIO * _max_error(references[name]["embeddings_float32"], exact)
         line = f"{name:22s} {label:15s} {error:13.2e} {bound:9.2e}  {str(error > bound):6s}"
         if (name, label) in float64:
             rel = float64[name, label]
