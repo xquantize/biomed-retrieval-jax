@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 import jax.numpy as jnp
+import numpy as np
 from jax.typing import DTypeLike
 
 from biomed_retrieval_jax.benchmarks import Benchmark
@@ -50,7 +51,8 @@ def retrieve(
         benchmark: The documents to search, and the queries.
         k: Documents to retrieve per query; MTEB keeps 1000.
         batch_size: Inputs per batch when embedding.
-        dtype: Dtype of the encoders' parameters and embeddings.
+        dtype: Dtype of the encoders' parameters and embeddings. Embeddings are scored in
+            float32 whatever the dtype, so that only the encoders' precision varies.
 
     Returns:
         Each query's retrieved documents and their scores.
@@ -68,8 +70,9 @@ def retrieve(
     ]
     query_ids = list(benchmark.queries)
     queries = query_encoder.embed([benchmark.queries[i] for i in query_ids], batch_size=batch_size)
+    embeddings = document_encoder.embed(documents, batch_size=batch_size)
     scores, indices = search(
-        queries, document_encoder.embed(documents, batch_size=batch_size), k, cosine=model.cosine
+        queries.astype(np.float32), embeddings.astype(np.float32), k, cosine=model.cosine
     )
     return {
         query: {document_ids[j]: float(s) for s, j in zip(scores[row], indices[row], strict=True)}

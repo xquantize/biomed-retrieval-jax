@@ -9,9 +9,10 @@ from tokenizers import Tokenizer
 
 from biomed_retrieval_jax.encoders import TextEncoder, bucket_length
 
-# Batched embeddings must match each input embedded alone, to this fraction of the largest
-# value. Float32 rounding from different padded lengths is ~1e-7 to 1e-6; ordering or padding
-# bugs give ~1e-1. Numerical accuracy is checked against Transformers by the checkpoint tests.
+# Batched embeddings must match each input embedded alone (eagerly, without padding), to this
+# fraction of the largest value. Measured: ~1e-7, from compiled against eager execution (padding
+# to other lengths alone gave identical results on CPU); ordering or padding bugs give ~1e-1.
+# Numerical accuracy is checked against Transformers by the checkpoint tests.
 BATCHING_TOLERANCE = 1e-5
 
 TEXTS = [
