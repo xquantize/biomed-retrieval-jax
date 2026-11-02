@@ -12,18 +12,21 @@ from support.registry import ENCODER_CHECKPOINTS
 
 from biomed_retrieval_jax.encoders import ENCODERS, TextEncoder
 
-# Our float32 error may be at most this many times PyTorch float32's, both against float64.
-# Measured ratios (largest over batch sizes 1 and 3) for medcpt-query, medcpt-article and
-# pubmedbert-embeddings: 0.17, 0.44, 0.65 on arm64; 0.84, 0.63, 1.00 on x86-64. Both are float32
-# rounding of similar size, so a ratio of 1 would fail by chance; subtle bugs are caught by the
-# float64 test, and this one still caught a LayerNorm epsilon of 1e-6 instead of 1e-12.
-FLOAT32_ERROR_RATIO = 2.0
-# Largest float64 error measured (relative to the largest reference value), same order:
-# 4.0e-16, 3.3e-16, 4.3e-15 on arm64; 3.8e-16, 2.1e-16, 7.1e-15 on x86-64. A LayerNorm epsilon
-# of 1e-10 instead of 1e-12 gives 2e-10, so this separates correct from buggy by four orders.
+# Our float32 RMS error may be at most this many times PyTorch float32's, both against float64.
+# The RMS averages every element's rounding error; the largest error, compared at first, is one
+# element's, and varied up to 2.2 times between batch sizes on identical code (and reached 1.92
+# times PyTorch's for all-minilm-l6-v2 on x86-64). Largest RMS ratios measured over batch sizes
+# 1, 3 and 8, on arm64: medcpt-query 0.35, medcpt-article 0.26, pubmedbert-embeddings 0.42,
+# all-minilm-l6-v2 0.82.
+FLOAT32_RMS_RATIO = 2.0
+# Largest float64 error (relative to the largest reference value) measured for medcpt-query,
+# medcpt-article, pubmedbert-embeddings and all-minilm-l6-v2: 4.0e-16, 3.3e-16, 4.3e-15, 1.7e-15
+# on arm64; 3.8e-16, 2.1e-16, 7.1e-15, 1.6e-15 on x86-64. A LayerNorm epsilon of 1e-10 instead
+# of 1e-12 gives 2e-10 or more, so this separates correct from buggy by four orders.
 FLOAT64_RELATIVE_TOLERANCE = 1e-13
-# Sentence-transformers' float32 error over our float32 PyTorch reference's, measured: 1.07 on
-# arm64, 0.90 on x86-64. A wrong pooling would make it roughly 1e4.
+# Sentence-transformers' float32 error over our float32 PyTorch reference's, measured: 1.07 and
+# 1.01 on arm64, 0.90 and 1.16 on x86-64 (pubmedbert-embeddings, all-minilm-l6-v2). A wrong
+# pooling would make it roughly 1e4.
 SENTENCE_TRANSFORMERS_ERROR_RATIO = 10.0
 
 
@@ -49,6 +52,10 @@ def max_error(value, reference):
     return float(np.abs(value - reference).max())
 
 
+def rms_error(value, reference):
+    return float(np.sqrt(np.mean((value - reference) ** 2)))
+
+
 def test_tokenization_matches_transformers(name, encoder, reference):
     encodings = encoder.tokenizer.encode_batch(inputs(name))
     assert [len(e.ids) for e in encodings] == reference["lengths"].tolist()
@@ -57,16 +64,18 @@ def test_tokenization_matches_transformers(name, encoder, reference):
     assert types.tolist() == reference["token_types"].tolist()
 
 
-@pytest.mark.parametrize("batch_size", [1, 3])
+@pytest.mark.parametrize("batch_size", [1, 3, 8])
 def test_float32_error_comparable_to_pytorch(name, encoder, reference, batch_size):
     exact = reference["embeddings_float64"]
-    ours = max_error(encoder.embed(inputs(name), batch_size=batch_size), exact)
-    pytorch = max_error(reference["embeddings_float32"], exact)
+    ours = encoder.embed(inputs(name), batch_size=batch_size)
+    pytorch = reference["embeddings_float32"]
+    ours_rms, pytorch_rms = rms_error(ours, exact), rms_error(pytorch, exact)
     print(
-        f"{name}, batch size {batch_size}: float32 error {ours:.2e}, PyTorch's {pytorch:.2e}"
-        f" (ratio {ours / pytorch:.2f})"
+        f"{name}, batch size {batch_size}: float32 rms error {ours_rms:.2e}, PyTorch's"
+        f" {pytorch_rms:.2e} (ratio {ours_rms / pytorch_rms:.2f}); largest error"
+        f" {max_error(ours, exact):.2e}, PyTorch's {max_error(pytorch, exact):.2e}"
     )
-    assert ours <= FLOAT32_ERROR_RATIO * pytorch
+    assert ours_rms <= FLOAT32_RMS_RATIO * pytorch_rms
 
 
 def test_float64_matches_reference(name, reference, tmp_path):
