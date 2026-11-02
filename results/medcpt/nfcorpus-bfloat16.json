@@ -1,0 +1,47 @@
+{
+  "model": "medcpt",
+  "benchmark": "nfcorpus",
+  "split": "test",
+  "dtype": "bfloat16",
+  "metrics": {
+    "ndcg@1": 0.4473684210526316,
+    "ndcg@3": 0.4140804562306685,
+    "ndcg@5": 0.3930633297906476,
+    "ndcg@10": 0.3651017762114848,
+    "ndcg@20": 0.3448230522328871,
+    "ndcg@100": 0.34099219797127933,
+    "ndcg@1000": 0.4286518426660035,
+    "recall@1": 0.06306517069292214,
+    "recall@3": 0.11559071967924013,
+    "recall@5": 0.14007031922544105,
+    "recall@10": 0.18262006583603013,
+    "recall@20": 0.2236683353445991,
+    "recall@100": 0.35010525901694217,
+    "recall@1000": 0.6561960473969679
+  },
+  "documents": 3633,
+  "queries": 323,
+  "seconds": 595.1,
+  "encoders": {
+    "medcpt-query": {
+      "repo": "ncbi/MedCPT-Query-Encoder",
+      "revision": "d83a36cc6b8e3a5c5e9d9d6ba156808c1643dcbc"
+    },
+    "medcpt-article": {
+      "repo": "ncbi/MedCPT-Article-Encoder",
+      "revision": "d05a736da4bb84ee4057b7f7999485be6ed85465"
+    }
+  },
+  "dataset": {
+    "repo": "mteb/nfcorpus",
+    "revision": "ec0fa4fe99da2ff19ca1214b7966684033a58814"
+  },
+  "versions": {
+    "biomed-retrieval-jax": "0.1.0",
+    "eqx-zoo": "0.3.6",
+    "jax": "0.12.0.1",
+    "jaxlib": "0.12.0.1"
+  },
+  "platform": "Darwin arm64",
+  "git": "f731f24"
+}

@@ -19,30 +19,15 @@ import numpy as np
 
 from biomed_retrieval_jax.benchmarks import BENCHMARKS, load_benchmark
 from biomed_retrieval_jax.metrics import per_query, rank
+from biomed_retrieval_jax.statistics import bootstrap_interval, permutation_p_value
 
 ROOT = Path(__file__).parents[1]
-PERMUTATIONS = 10_000
-RESAMPLES = 10_000
 
 
 def _load(benchmark, run):
     model, dtype = run.split(":")
     with gzip.open(ROOT / "runs" / model / f"{benchmark}-{dtype}.json.gz", "rt") as f:
         return json.load(f)
-
-
-def _permutation_p_value(differences, rng):
-    """Two-sided paired permutation test of the mean of per-query differences."""
-    observed = abs(differences.mean())
-    signs = rng.choice([-1.0, 1.0], size=(PERMUTATIONS, len(differences)))
-    extreme = (np.abs((signs * differences).mean(axis=1)) >= observed - 1e-15).sum()
-    return (extreme + 1) / (PERMUTATIONS + 1)
-
-
-def _bootstrap_interval(differences, rng):
-    """95% percentile bootstrap interval for the mean of per-query differences."""
-    samples = rng.integers(0, len(differences), size=(RESAMPLES, len(differences)))
-    return np.quantile(differences[samples].mean(axis=1), [0.025, 0.975])
 
 
 def main():
@@ -78,11 +63,11 @@ def main():
         a = np.array([metrics[args.a][q][name] for q in queries])
         b = np.array([metrics[args.b][q][name] for q in queries])
         d = b - a
-        low, high = _bootstrap_interval(d, rng)
+        low, high = bootstrap_interval(d, rng)
         print(
             f"  {name}: {a.mean():.5f} -> {b.mean():.5f} ({d.mean():+.5f},"
             f" 95% interval [{low:+.5f}, {high:+.5f}]); changed for {(d != 0).sum()} queries"
-            f" (largest {np.abs(d).max():.3f}); permutation p = {_permutation_p_value(d, rng):.4f}"
+            f" (largest {np.abs(d).max():.3f}); permutation p = {permutation_p_value(d, rng):.4f}"
         )
 
 

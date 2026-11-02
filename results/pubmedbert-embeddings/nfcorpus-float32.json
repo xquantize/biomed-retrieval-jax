@@ -1,0 +1,43 @@
+{
+  "model": "pubmedbert-embeddings",
+  "benchmark": "nfcorpus",
+  "split": "test",
+  "dtype": "float32",
+  "metrics": {
+    "ndcg@1": 0.33591331269349844,
+    "ndcg@3": 0.3004955990474712,
+    "ndcg@5": 0.28349186749228555,
+    "ndcg@10": 0.26599973938385374,
+    "ndcg@20": 0.24712871871630376,
+    "ndcg@100": 0.25089880984321317,
+    "ndcg@1000": 0.3429354922446297,
+    "recall@1": 0.03937612258039874,
+    "recall@3": 0.07914175648410109,
+    "recall@5": 0.09962102315915139,
+    "recall@10": 0.13229302463263956,
+    "recall@20": 0.16307706802304014,
+    "recall@100": 0.2700184430356598,
+    "recall@1000": 0.588594143399741
+  },
+  "documents": 3633,
+  "queries": 323,
+  "seconds": 493.1,
+  "encoders": {
+    "pubmedbert-embeddings": {
+      "repo": "NeuML/pubmedbert-base-embeddings",
+      "revision": "b79526d6ef3645e0df4530322e266f24c829f5ef"
+    }
+  },
+  "dataset": {
+    "repo": "mteb/nfcorpus",
+    "revision": "ec0fa4fe99da2ff19ca1214b7966684033a58814"
+  },
+  "versions": {
+    "biomed-retrieval-jax": "0.1.0",
+    "eqx-zoo": "0.3.6",
+    "jax": "0.12.0.1",
+    "jaxlib": "0.12.0.1"
+  },
+  "platform": "Darwin arm64",
+  "git": "f731f24"
+}
