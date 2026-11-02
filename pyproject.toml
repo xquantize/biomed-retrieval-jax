@@ -39,6 +39,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "pytrec-eval-terrier>=0.5.8",
     "ruff>=0.16.9",
     "sentence-transformers>=3",
     "torch>=2.14.0",

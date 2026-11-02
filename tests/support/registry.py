@@ -9,6 +9,7 @@ ENCODER_CHECKPOINTS: dict[str, str] = {
     "medcpt-query": "ncbi/MedCPT-Query-Encoder",  # [CLS] pooling, queries up to 64 tokens
     "medcpt-article": "ncbi/MedCPT-Article-Encoder",  # [CLS] pooling, (title, abstract) pairs
     "pubmedbert-embeddings": "NeuML/pubmedbert-base-embeddings",  # mean pooling
+    "all-minilm-l6-v2": "sentence-transformers/all-MiniLM-L6-v2",  # mean pooling, normalised
 }
 
 # Every registered checkpoint: used to validate --checkpoint and to create CI jobs.
