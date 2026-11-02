@@ -1,9 +1,10 @@
 """Compare two runs on the same benchmark: their rankings, metrics, and a significance test.
 
 Each run is `MODEL:DTYPE`, saved by `scripts/evaluate.py` in `runs/`. Reports how many queries'
-rankings differ, the difference in mean nDCG@10 and Recall@100, and a paired permutation test of
-each difference: the fraction of 10,000 random sign flips of the per-query differences whose mean
-is at least as far from zero as the observed one.
+rankings differ and the difference in mean nDCG@10 and Recall@100, with two statistics over the
+per-query differences: a paired permutation test (the fraction of 10,000 random sign flips whose
+mean is at least as far from zero as the observed one) and a 95% percentile bootstrap interval
+for the mean difference (from 10,000 resamples of the queries).
 
 Run with `uv run python scripts/compare_runs.py BENCHMARK A B`, for example
 `uv run python scripts/compare_runs.py nfcorpus medcpt:float32 medcpt:bfloat16`.
@@ -21,6 +22,7 @@ from biomed_retrieval_jax.metrics import per_query, rank
 
 ROOT = Path(__file__).parents[1]
 PERMUTATIONS = 10_000
+RESAMPLES = 10_000
 
 
 def _load(benchmark, run):
@@ -35,6 +37,12 @@ def _permutation_p_value(differences, rng):
     signs = rng.choice([-1.0, 1.0], size=(PERMUTATIONS, len(differences)))
     extreme = (np.abs((signs * differences).mean(axis=1)) >= observed - 1e-15).sum()
     return (extreme + 1) / (PERMUTATIONS + 1)
+
+
+def _bootstrap_interval(differences, rng):
+    """95% percentile bootstrap interval for the mean of per-query differences."""
+    samples = rng.integers(0, len(differences), size=(RESAMPLES, len(differences)))
+    return np.quantile(differences[samples].mean(axis=1), [0.025, 0.975])
 
 
 def main():
@@ -70,10 +78,11 @@ def main():
         a = np.array([metrics[args.a][q][name] for q in queries])
         b = np.array([metrics[args.b][q][name] for q in queries])
         d = b - a
+        low, high = _bootstrap_interval(d, rng)
         print(
-            f"  {name}: {a.mean():.5f} -> {b.mean():.5f} ({d.mean():+.5f}); changed for"
-            f" {(d != 0).sum()} queries (largest {np.abs(d).max():.3f});"
-            f" permutation p = {_permutation_p_value(d, rng):.4f}"
+            f"  {name}: {a.mean():.5f} -> {b.mean():.5f} ({d.mean():+.5f},"
+            f" 95% interval [{low:+.5f}, {high:+.5f}]); changed for {(d != 0).sum()} queries"
+            f" (largest {np.abs(d).max():.3f}); permutation p = {_permutation_p_value(d, rng):.4f}"
         )
 
 
