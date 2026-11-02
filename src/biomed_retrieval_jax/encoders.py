@@ -25,11 +25,13 @@ class EncoderSpec:
             truncated; (title, abstract) pairs lose tokens from the longer part first.
         pooling: Pooling for a checkpoint without a sentence-transformers pipeline
             (`"cls"`, `"mean"` or `"last_token"`), or `None` to use the checkpoint's own.
+        revision: Git revision of the Hub repository, or `None` for the latest.
     """
 
     repo: str
     max_length: int
     pooling: str | None = None
+    revision: str | None = None
 
 
 ENCODERS = {
@@ -38,6 +40,13 @@ ENCODERS = {
     "medcpt-article": EncoderSpec("ncbi/MedCPT-Article-Encoder", max_length=512, pooling="cls"),
     # Mean pooling without normalisation, from its sentence-transformers pipeline.
     "pubmedbert-embeddings": EncoderSpec("NeuML/pubmedbert-base-embeddings", max_length=512),
+    # Mean pooling, normalised, from its sentence-transformers pipeline. The yardstick for the
+    # evaluation harness: MTEB's published results are for this revision.
+    "all-minilm-l6-v2": EncoderSpec(
+        "sentence-transformers/all-MiniLM-L6-v2",
+        max_length=256,
+        revision="8b3219a92973c328a8e22fadcfa821b5dc75636a",
+    ),
 }
 
 
@@ -112,8 +121,11 @@ class TextEncoder:
         Returns:
             The text encoder.
         """
-        encoder = Encoder.from_pretrained(spec.repo, dtype=dtype, pooling=spec.pooling)
-        return cls(encoder, Tokenizer.from_pretrained(spec.repo), spec.max_length)
+        encoder = Encoder.from_pretrained(
+            spec.repo, dtype=dtype, pooling=spec.pooling, revision=spec.revision
+        )
+        tokenizer = Tokenizer.from_pretrained(spec.repo, revision=spec.revision or "main")
+        return cls(encoder, tokenizer, spec.max_length)
 
     def embed(
         self, inputs: Sequence[str] | Sequence[tuple[str, str]], *, batch_size: int = 32
