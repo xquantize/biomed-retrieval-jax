@@ -17,7 +17,9 @@ from biomed_retrieval_jax.encoders import ENCODERS, TextEncoder
 # element's, and varied up to 2.2 times between batch sizes on identical code (and reached 1.92
 # times PyTorch's for all-minilm-l6-v2 on x86-64). Largest RMS ratios measured over batch sizes
 # 1, 3 and 8, on arm64: medcpt-query 0.35, medcpt-article 0.26, pubmedbert-embeddings 0.42,
-# all-minilm-l6-v2 0.82.
+# all-minilm-l6-v2 0.82; on x86-64: 0.84, 0.78, 0.67, 1.19 (same order). The float32 test
+# catches a LayerNorm epsilon of 1e-6 instead of 1e-12 for every encoder, but not 1e-8; the
+# float64 test catches both.
 FLOAT32_RMS_RATIO = 2.0
 # Largest float64 error (relative to the largest reference value) measured for medcpt-query,
 # medcpt-article, pubmedbert-embeddings and all-minilm-l6-v2: 4.0e-16, 3.3e-16, 4.3e-15, 1.7e-15
