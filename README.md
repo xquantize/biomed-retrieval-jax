@@ -6,7 +6,7 @@ Verified biomedical literature retrieval in JAX, built on
 > **Research demo, not for clinical use.** This project uses public research data only and
 > must not be used to inform medical decisions.
 
-Work in progress: a search command-line tool and a demo are next.
+Work in progress: a static demo is next.
 
 ## Verified encoders
 
@@ -121,6 +121,46 @@ Only 24–63% of top-10 lists keep their exact order, but 97–99% of their docu
 top 10, and no difference is significant (every p > 0.05). On this CPU, bf16 was 8–22% slower
 than float32, so it is worth using only to save memory, or on hardware with native bf16.
 
+## Search
+
+`biomed-search` searches a corpus of openly licensed abstracts with MedCPT: queries are embedded
+with its query encoder, abstracts with its article encoder, and scored by dot product.
+
+The corpus has 10,000 articles released in PubMed Central from 1 to 14 January 2026 under CC0
+(37) or CC BY (9,963) licences, taken in a seeded random order from the 26,144 candidates. Each
+article's licence and retraction status are checked in its metadata on PMC's Cloud Service, and
+its title, abstract and publication types come from PubMed. An article is kept only if it is
+indexed in PubMed, has an abstract, and is not retracted, a retraction notice, an erratum or an
+expression of concern. Of the articles examined, 4,528 were not indexed in PubMed (mostly
+supplements of meeting abstracts), 364 had no abstract, 158 were errata, 69 retraction notices,
+5 retracted articles and 4 expressions of concern. 166 documents (1.7%) are preprints: they are
+kept, and every result from one is labelled as not peer-reviewed.
+
+```bash
+uv run python scripts/build_corpus.py --start 2026-01-01 --end 2026-01-14 --size 10000 \
+    --out data/corpus-10k
+uv run biomed-search index data/corpus-10k data/index-10k
+uv run biomed-search search data/index-10k "sleep problems in older adults" -k 3
+```
+
+On an Apple-silicon laptop's CPU, building the corpus took about 40 minutes, mostly requests to
+PMC and PubMed (cached in `data/cache`, so an interrupted build resumes), and indexing it about
+25 minutes (6.8 abstracts per second). Each directory's `manifest.json` records how it was built:
+the query, dates and seed, the exclusions, the exact model revisions and the commit.
+
+```
+Research demo, not for clinical use: results must not inform medical decisions.
+
+1. Older injured adults reported sleep disturbances: a cross-sectional study. [64.00]
+   Journal of patient-reported outcomes, 2025 | CC BY | https://pmc.ncbi.nlm.nih.gov/articles/PMC12764724/
+   BACKGROUND: Sleep disturbances are common among older adults recovering from traumatic injury
+   ...
+
+2. The effects of Qigong exercise on sleep quality in older adults: a systematic review and
+   meta-analysis. [63.31]
+   ...
+```
+
 ## Limitations
 
 - Two small benchmarks: 323 and 300 test queries. NFCorpus's relevance judgments were extracted
@@ -132,11 +172,19 @@ than float32, so it is worth using only to save memory, or on hardware with nati
 - MedCPT's released checkpoints differ slightly from the version in its paper, so the paper's
   scores are not directly comparable.
 - Exact search only, without re-ranking.
+- The search corpus covers two weeks of publications (10,000 abstracts), so many questions
+  have no directly relevant article in it. It includes only articles indexed in PubMed, and
+  reflects retractions known when it was built. Its largest journals are Cureus (6%) and
+  PLOS ONE (3%).
 
 ## Data
 
 The benchmarks are downloaded at evaluation time and never redistributed. Their original terms
 apply: NFCorpus is free to use for academic purposes; SciFact is released under CC BY-NC 2.0.
+
+The search corpus contains only articles licensed CC0 or CC BY. Each document keeps its
+licence, DOI and journal citation, and each search result shows its title, journal, year,
+licence and a link to the article in PubMed Central.
 
 ## Licences and citation
 
