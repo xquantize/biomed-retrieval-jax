@@ -27,6 +27,9 @@ dependencies = [
     "tokenizers>=0.21",
 ]
 
+[project.scripts]
+biomed-search = "biomed_retrieval_jax.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/xquantize/biomed-retrieval-jax"
 Repository = "https://github.com/xquantize/biomed-retrieval-jax"
