@@ -1,0 +1,43 @@
+{
+  "model": "all-minilm-l6-v2",
+  "benchmark": "nfcorpus",
+  "split": "test",
+  "dtype": "float32",
+  "metrics": {
+    "ndcg@1": 0.39473684210526316,
+    "ndcg@3": 0.36355284668333326,
+    "ndcg@5": 0.3416366218563691,
+    "ndcg@10": 0.31594074924861876,
+    "ndcg@20": 0.29326895752551774,
+    "ndcg@100": 0.2945518979268979,
+    "ndcg@1000": 0.38283483093895354,
+    "recall@1": 0.04323338172489979,
+    "recall@3": 0.09053078997459071,
+    "recall@5": 0.11958585040292335,
+    "recall@10": 0.15498797328057845,
+    "recall@20": 0.18891460527595516,
+    "recall@100": 0.31150992401169303,
+    "recall@1000": 0.6321107329090114
+  },
+  "documents": 3633,
+  "queries": 323,
+  "seconds": 41.1,
+  "encoders": {
+    "all-minilm-l6-v2": {
+      "repo": "sentence-transformers/all-MiniLM-L6-v2",
+      "revision": "8b3219a92973c328a8e22fadcfa821b5dc75636a"
+    }
+  },
+  "dataset": {
+    "repo": "mteb/nfcorpus",
+    "revision": "ec0fa4fe99da2ff19ca1214b7966684033a58814"
+  },
+  "versions": {
+    "biomed-retrieval-jax": "0.1.0",
+    "eqx-zoo": "0.3.6",
+    "jax": "0.12.0.1",
+    "jaxlib": "0.12.0.1"
+  },
+  "platform": "Darwin arm64",
+  "git": "f731f24"
+}
