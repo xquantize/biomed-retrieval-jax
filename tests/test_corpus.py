@@ -12,6 +12,8 @@ PUBMED = b"""<?xml version="1.0"?>
   <PubmedArticle><MedlineCitation><PMID>1</PMID><Article>
     <Journal><JournalIssue><PubDate><Year>2026</Year></PubDate></JournalIssue>
       <Title>Journal One</Title></Journal>
+    <AuthorList><Author><LastName>Smith</LastName><Initials>JA</Initials></Author>
+      <Author><CollectiveName>The Trial Group</CollectiveName></Author></AuthorList>
     <ArticleTitle>A <i>structured</i> abstract</ArticleTitle>
     <Abstract>
       <AbstractText Label="BACKGROUND">Some <i>Escherichia coli</i>
@@ -45,7 +47,9 @@ def test_parse_pubmed_keeps_inline_text_and_labels():
         "journal": "Journal One",
         "year": "2026",
         "types": ["Journal Article"],
+        "authors": ["Smith JA", "The Trial Group"],
     }
+    assert records["2"]["authors"] == []
     assert records["2"]["abstract"] == "" and records["2"]["year"] == "2025"
 
 
@@ -193,3 +197,12 @@ def test_preprints_and_corpora_without_publication_types(tmp_path):
     }
     (tmp_path / "documents.jsonl").write_text(json.dumps(older) + "\n")
     assert corpus.read_corpus(tmp_path)[0].publication_types == []
+
+
+@pytest.mark.parametrize(
+    ("authors", "byline"),
+    [([], ""), (["Smith JA"], "Smith JA"), (["Smith JA", "Doe B"], "Smith JA et al.")],
+)
+def test_byline(authors, byline):
+    document = corpus.Document("PMC1", "1", None, "T", "A", "J", "2026", "C", "CC BY", [], authors)
+    assert document.byline == byline

@@ -63,10 +63,11 @@ def _search(args: argparse.Namespace) -> None:
     results = Searcher.from_directory(args.index).search(args.query, k=args.k)
     print(NOTICE)
     for rank, (document, score) in enumerate(results, start=1):
+        byline = f"{document.byline.removesuffix('.')}. " if document.byline else ""
         preprint = " | Preprint (not peer-reviewed)" if document.preprint else ""
         print(f"\n{rank}. {document.title} [{score:.2f}]")
         print(
-            f"   {document.journal}, {document.year} | {document.license}{preprint} |"
+            f"   {byline}{document.journal}, {document.year} | {document.license}{preprint} |"
             f" https://pmc.ncbi.nlm.nih.gov/articles/{document.pmcid}/"
         )
         print(textwrap.indent(textwrap.fill(textwrap.shorten(document.abstract, 240), 96), "   "))

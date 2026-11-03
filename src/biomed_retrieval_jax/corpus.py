@@ -66,6 +66,7 @@ class Document:
         citation: Journal citation, from PMC.
         license: Creative Commons licence code, "CC0" or "CC BY".
         publication_types: PubMed publication types, such as "Journal Article" or "Preprint".
+        authors: Authors as "Surname Initials", or a group's name, in PubMed's order.
     """
 
     pmcid: str
@@ -78,11 +79,19 @@ class Document:
     citation: str
     license: str
     publication_types: list[str] = field(default_factory=list)
+    authors: list[str] = field(default_factory=list)
 
     @property
     def preprint(self) -> bool:
         """Whether PubMed lists the article as a preprint, which has not been peer-reviewed."""
         return "Preprint" in self.publication_types
+
+    @property
+    def byline(self) -> str:
+        """The first author, followed by "et al." if there are others; empty if none."""
+        if not self.authors:
+            return ""
+        return self.authors[0] + (" et al." if len(self.authors) > 1 else "")
 
 
 def _get(url: str, params: dict | None = None) -> bytes:
@@ -206,12 +215,20 @@ def parse_pubmed(xml: bytes) -> dict[str, dict]:
             details.findtext(f"{published}/Year")
             or (details.findtext(f"{published}/MedlineDate") or "")[:4]
         )
+        authors = []
+        for author in details.findall("AuthorList/Author"):
+            surname, initials = author.findtext("LastName"), author.findtext("Initials")
+            if surname:
+                authors.append(f"{surname} {initials}" if initials else surname)
+            elif group := author.findtext("CollectiveName"):
+                authors.append(group)
         records[pmid] = {
             "title": _text(details.find("ArticleTitle")),
             "abstract": " ".join(sections),
             "journal": details.findtext("Journal/Title") or "",
             "year": year,
             "types": [t.text or "" for t in details.findall("PublicationTypeList/PublicationType")],
+            "authors": authors,
         }
     return records
 
@@ -284,6 +301,7 @@ def build_corpus(
                         citation=m["citation"],
                         license=m["license_code"],
                         publication_types=record["types"],
+                        authors=record["authors"],
                     )
                 )
                 seen.add(pmid)
