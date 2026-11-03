@@ -36,6 +36,19 @@ MODELS = {
 }
 
 
+def document_input(document: tuple[str, str], pairs: bool) -> str | tuple[str, str]:
+    """How a (title, text) document is given to an encoder.
+
+    Args:
+        document: Its title and text.
+        pairs: Whether the encoder takes (title, text) pairs.
+
+    Returns:
+        The pair itself, or the title and text joined by a space, as MTEB does.
+    """
+    return document if pairs else " ".join(document).strip()
+
+
 def retrieve(
     model: RetrievalModel,
     benchmark: Benchmark,
@@ -64,10 +77,7 @@ def retrieve(
         document_encoder = TextEncoder.from_spec(ENCODERS[model.document_encoder], dtype=dtype)
 
     document_ids = list(benchmark.documents)
-    documents = [
-        benchmark.documents[i] if model.pairs else " ".join(benchmark.documents[i]).strip()
-        for i in document_ids
-    ]
+    documents = [document_input(benchmark.documents[i], model.pairs) for i in document_ids]
     query_ids = list(benchmark.queries)
     queries = query_encoder.embed([benchmark.queries[i] for i in query_ids], batch_size=batch_size)
     embeddings = document_encoder.embed(documents, batch_size=batch_size)
