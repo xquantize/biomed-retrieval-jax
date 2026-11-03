@@ -6,7 +6,9 @@ Verified biomedical literature retrieval in JAX, built on
 > **Research demo, not for clinical use.** This project uses public research data only and
 > must not be used to inform medical decisions.
 
-Work in progress: a static demo is next.
+**[Demo](https://huggingface.co/spaces/xquantize/biomed-retrieval-jax-demo)**: precomputed search results for eight example queries.
+**[Dataset](https://huggingface.co/datasets/xquantize/biomed-retrieval-jax-pmc-10k)**: the 10,000 openly licensed abstracts it searches, with their MedCPT
+embeddings.
 
 ## Verified encoders
 
@@ -159,6 +161,23 @@ Research demo, not for clinical use: results must not inform medical decisions.
 2. The effects of Qigong exercise on sleep quality in older adults: a systematic review and
    meta-analysis. [63.31]
    ...
+```
+
+## Demo
+
+The [demo](https://huggingface.co/spaces/xquantize/biomed-retrieval-jax-demo) shows the five abstracts MedCPT ranks highest for each of eight example
+queries, chosen to show both what the search does well and where the small corpus has no
+directly relevant article. It is a static page, so the results are precomputed; scores are not
+shown, because they rank the results of one query and are not comparable across queries. Each
+result shows its authors, journal, year, licence and a link to the article.
+
+The corpus and its embeddings are published as a [dataset](https://huggingface.co/datasets/xquantize/biomed-retrieval-jax-pmc-10k), whose card describes how
+they were built, their licences and their limitations.
+
+```bash
+uv run python scripts/build_demo.py          # run the queries and render the page
+uv run python scripts/publish.py             # stage the dataset and the Space in data/publish
+uv run python scripts/publish.py --upload    # publish both to the Hugging Face Hub
 ```
 
 ## Limitations

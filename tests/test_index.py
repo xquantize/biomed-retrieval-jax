@@ -90,3 +90,20 @@ def test_cli_labels_preprints(monkeypatch, capsys, tmp_path):
     out = capsys.readouterr().out
     assert "bioRxiv, 2026 | CC BY | Preprint (not peer-reviewed) |" in out
     assert out.count("Preprint (not peer-reviewed)") == 1  # not on the journal article
+
+
+def test_cli_bylines_end_with_one_full_stop(monkeypatch, capsys, tmp_path):
+    several = Document(
+        "PMC9", "9", None, "T", "A", "J", "2026", "C", "CC BY", [], ["Smith JA", "Doe B"]
+    )
+    one = Document("PMC8", "8", None, "T", "A", "J", "2026", "C", "CC BY", [], ["Lee S"])
+
+    class Stub:
+        def search(self, query, k):
+            return [(several, 0.5), (one, 0.4)]
+
+    monkeypatch.setattr(Searcher, "from_directory", classmethod(lambda cls, directory: Stub()))
+    cli.main(["search", str(tmp_path), "anything"])
+    out = capsys.readouterr().out
+    assert "Smith JA et al. J, 2026" in out and "Lee S. J, 2026" in out
+    assert ".." not in out
