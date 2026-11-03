@@ -160,3 +160,36 @@ def test_get_retries_incomplete_reads_and_caches_responses(monkeypatch, tmp_path
     assert corpus._get("https://example.org/a", {"q": "1"}) == b"body"
     assert len(calls) == 2  # answered from the cache
     assert not list(tmp_path.glob("*.tmp"))  # no partial files left behind
+
+
+def test_build_corpus_skips_duplicate_pmids_and_keeps_publication_types(monkeypatch):
+    cases = {"PMC1": metadata("PMC1", 1, pmid=1), "PMC8": metadata("PMC8", 1, pmid=1)}
+    monkeypatch.setattr(corpus, "article_metadata", cases.get)
+    monkeypatch.setattr(corpus, "_eutils", lambda endpoint, **params: PUBMED)
+    documents, excluded = corpus.build_corpus(list(cases), size=10)
+    assert [d.pmid for d in documents] == ["1"]
+    assert excluded == {"duplicate PMID": 1}
+    assert documents[0].publication_types == ["Journal Article"] and not documents[0].preprint
+
+
+def test_preprints_and_corpora_without_publication_types(tmp_path):
+    document = corpus.Document(
+        "PMC1",
+        "1",
+        None,
+        "T",
+        "A",
+        "bioRxiv",
+        "2026",
+        "C",
+        "CC BY",
+        ["Journal Article", "Preprint"],
+    )
+    assert document.preprint
+    older = {
+        k: v
+        for k, v in json.loads(json.dumps(document.__dict__)).items()
+        if k != "publication_types"
+    }
+    (tmp_path / "documents.jsonl").write_text(json.dumps(older) + "\n")
+    assert corpus.read_corpus(tmp_path)[0].publication_types == []

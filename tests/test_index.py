@@ -65,3 +65,28 @@ def test_cli_search_prints_the_notice_and_results(monkeypatch, capsys, tmp_path)
     assert out.startswith(cli.NOTICE)
     assert "1. blood pressure [0.50]" in out
     assert "https://pmc.ncbi.nlm.nih.gov/articles/PMC1/" in out
+
+
+def test_cli_labels_preprints(monkeypatch, capsys, tmp_path):
+    preprint = Document(
+        "PMC9",
+        "9",
+        None,
+        "A preprint",
+        "Text",
+        "bioRxiv",
+        "2026",
+        "C",
+        "CC BY",
+        ["Journal Article", "Preprint"],
+    )
+
+    class Stub:
+        def search(self, query, k):
+            return [(preprint, 0.5), (DOCUMENTS[0], 0.4)]
+
+    monkeypatch.setattr(Searcher, "from_directory", classmethod(lambda cls, directory: Stub()))
+    cli.main(["search", str(tmp_path), "anything"])
+    out = capsys.readouterr().out
+    assert "bioRxiv, 2026 | CC BY | Preprint (not peer-reviewed) |" in out
+    assert out.count("Preprint (not peer-reviewed)") == 1  # not on the journal article

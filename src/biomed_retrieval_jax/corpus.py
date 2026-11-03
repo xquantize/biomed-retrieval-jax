@@ -24,7 +24,7 @@ import xml.etree.ElementTree as ET
 from collections import Counter
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -65,6 +65,7 @@ class Document:
         year: Year of publication.
         citation: Journal citation, from PMC.
         license: Creative Commons licence code, "CC0" or "CC BY".
+        publication_types: PubMed publication types, such as "Journal Article" or "Preprint".
     """
 
     pmcid: str
@@ -76,6 +77,12 @@ class Document:
     year: str
     citation: str
     license: str
+    publication_types: list[str] = field(default_factory=list)
+
+    @property
+    def preprint(self) -> bool:
+        """Whether PubMed lists the article as a preprint, which has not been peer-reviewed."""
+        return "Preprint" in self.publication_types
 
 
 def _get(url: str, params: dict | None = None) -> bytes:
@@ -215,7 +222,8 @@ def build_corpus(
     """Select documents from candidate articles, in a seeded random order, until enough pass.
 
     An article is kept if its preferred version is licensed CC0 or CC BY, is not retracted and
-    has a PMID, and its PubMed record has an abstract and none of `EXCLUDED_TYPES`.
+    has a PMID that no earlier article had, and its PubMed record has an abstract and none
+    of `EXCLUDED_TYPES`.
 
     Args:
         pmcids: Candidate articles.
@@ -230,6 +238,7 @@ def build_corpus(
     order = random.Random(seed).sample(list(pmcids), len(pmcids))
     documents: list[Document] = []
     excluded: Counter[str] = Counter()
+    seen: set[str] = set()
     for start in range(0, len(order), BATCH):
         if len(documents) >= size:
             break
@@ -246,6 +255,8 @@ def build_corpus(
                 excluded["retracted"] += 1
             elif not m["pmid"]:
                 excluded["not indexed in PubMed (no PMID)"] += 1
+            elif str(m["pmid"]) in seen or str(m["pmid"]) in kept:
+                excluded["duplicate PMID"] += 1
             else:
                 kept[str(m["pmid"])] = (pmcid, m)
         records = {}
@@ -272,8 +283,10 @@ def build_corpus(
                         year=record["year"],
                         citation=m["citation"],
                         license=m["license_code"],
+                        publication_types=record["types"],
                     )
                 )
+                seen.add(pmid)
     return documents[:size], dict(excluded)
 
 
