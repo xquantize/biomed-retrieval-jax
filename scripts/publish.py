@@ -26,13 +26,23 @@ DATASET_URL = f"https://huggingface.co/datasets/{DATASET_ID}"
 SPACE_URL = f"https://huggingface.co/spaces/{SPACE_ID}"
 
 
+def _phrase(reason: str) -> str:
+    """An exclusion reason from the manifest, phrased to follow a count."""
+    if reason.startswith("publication type"):
+        return f"of {reason}"
+    return {"no abstract": "with no abstract", "retracted": "retracted articles"}.get(
+        reason, reason
+    )
+
+
 def dataset_card(documents, manifest) -> str:
     """The dataset's README, filled in from the index's manifest."""
     corpus = manifest["corpus"]
     start, end = corpus["released"]
     licences = corpus["licences"]
-    excluded = ", ".join(
-        f"{n:,} {reason}" for reason, n in sorted(corpus["excluded"].items(), key=lambda x: -x[1])
+    excluded = "; ".join(
+        f"{n:,} {_phrase(reason)}"
+        for reason, n in sorted(corpus["excluded"].items(), key=lambda x: -x[1])
     )
     preprints = sum(d.preprint for d in documents)
     journals = Counter(d.journal for d in documents).most_common(2)
@@ -92,8 +102,9 @@ random order, each article's licence and retraction status were checked in its m
 PMC's Cloud Service, and its title, abstract, authors and publication types were taken from
 PubMed, until {len(documents):,} articles passed. An article was kept only if it is indexed in
 PubMed, has an abstract, and is not retracted, a retraction notice, an erratum or an expression
-of concern. Of the articles examined, these were excluded: {excluded}. Most articles not indexed
-in PubMed were supplements of meeting abstracts.
+of concern. Of the articles examined, these were excluded: {excluded}. In a sample of 145 of
+the articles not indexed in PubMed, 136 came from one journal's supplement of meeting
+abstracts.
 
 ## Licences and attribution
 
@@ -127,7 +138,7 @@ dot product, as `biomed-search` does.
 - Only articles indexed in PubMed; retractions as known when the corpus was built.
 - {preprints} articles are preprints, which have not been peer-reviewed: their
   `publication_types` include "Preprint".
-- Abstracts longer than 512 tokens were truncated for embedding (the texts are complete).
+- Embeddings are of the (title, abstract) pair truncated at 512 tokens; the texts are complete.
 - The largest journals are {journals[0][0]} ({journals[0][1]:,} articles) and {journals[1][0]}
   ({journals[1][1]:,}).
 """
