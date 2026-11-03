@@ -3,6 +3,8 @@
 Writes `documents.jsonl` and `manifest.json` (every parameter, the exclusions and the licence
 counts) to the output directory. Set `NCBI_EMAIL`, and optionally `NCBI_API_KEY`, as NCBI asks.
 
+Responses are cached in `data/cache` (see `--cache`), so an interrupted build resumes.
+
 Run with `uv run python scripts/build_corpus.py --size 1000 --out data/corpus-1k`.
 """
 
@@ -12,6 +14,7 @@ from collections import Counter
 from datetime import UTC, date, datetime
 from pathlib import Path
 
+import biomed_retrieval_jax.corpus as corpus
 from biomed_retrieval_jax.corpus import QUERY, build_corpus, search_pmc, write_corpus
 
 
@@ -23,7 +26,9 @@ def main():
     parser.add_argument("--size", type=int, required=True)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--cache", type=Path, default=Path("data/cache"))
     args = parser.parse_args()
+    corpus.CACHE_DIRECTORY = args.cache
 
     pmcids = search_pmc(args.start, args.end)
     print(f"{len(pmcids)} candidates released {args.start} to {args.end}")

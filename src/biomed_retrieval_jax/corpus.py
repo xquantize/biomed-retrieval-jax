@@ -9,10 +9,13 @@ Only articles indexed in PubMed are kept. PMC also holds articles that PubMed do
 such as supplements of meeting abstracts, which would otherwise dominate a small corpus.
 """
 
+import hashlib
+import http.client
 import json
 import os
 import random
 import re
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -42,6 +45,10 @@ EXCLUDED_TYPES = frozenset(
     }
 )
 BATCH = 200  # articles per EFetch request
+# If set, responses are cached in this directory and reused, so that an interrupted build
+# resumes where it stopped. PMC's metadata can change (an article may be retracted later),
+# so delete the directory to fetch everything afresh.
+CACHE_DIRECTORY: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -72,22 +79,33 @@ class Document:
 
 
 def _get(url: str, params: dict | None = None) -> bytes:
-    """Fetch a URL, retrying transient failures with exponential backoff."""
+    """Fetch a URL, retrying transient failures; with `CACHE_DIRECTORY` set, cache responses."""
     if params:
         url = f"{url}?{urllib.parse.urlencode(params)}"
+    cached = None
+    if CACHE_DIRECTORY is not None:
+        cached = CACHE_DIRECTORY / hashlib.sha256(url.encode()).hexdigest()
+        if cached.exists():
+            return cached.read_bytes()
     request = urllib.request.Request(url, headers={"User-Agent": "biomed-retrieval-jax"})
     for attempt in range(5):
         try:
             with urllib.request.urlopen(request, timeout=60) as response:
-                return response.read()
+                body = response.read()
+            break
         except urllib.error.HTTPError as error:
             if (error.code < 500 and error.code != 429) or attempt == 4:
                 raise
-        except (urllib.error.URLError, TimeoutError):
+        except (urllib.error.URLError, http.client.HTTPException, ConnectionError, TimeoutError):
             if attempt == 4:
                 raise
         time.sleep(2**attempt)
-    raise AssertionError("unreachable")
+    if cached is not None:
+        cached.parent.mkdir(parents=True, exist_ok=True)
+        partial = cached.with_name(f"{cached.name}.{threading.get_ident()}.tmp")
+        partial.write_bytes(body)
+        partial.replace(cached)  # atomic: an interruption never leaves a truncated response
+    return body
 
 
 def _eutils(endpoint: str, **params) -> bytes:

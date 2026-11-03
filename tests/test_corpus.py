@@ -1,5 +1,6 @@
 """Corpus building: PubMed parsing, version choice and filtering (no network)."""
 
+import http.client
 import json
 
 import pytest
@@ -127,3 +128,35 @@ def test_excluded_types_are_retractions_and_corrections():
     assert "Journal Article" not in corpus.EXCLUDED_TYPES
     with pytest.raises(AttributeError):
         corpus.EXCLUDED_TYPES.add("x")  # frozen
+
+
+def test_get_retries_incomplete_reads_and_caches_responses(monkeypatch, tmp_path):
+    calls = []
+
+    class Response:
+        def __init__(self, fail):
+            self.fail = fail
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            if self.fail:
+                raise http.client.IncompleteRead(b"partial")
+            return b"body"
+
+    def urlopen(request, timeout):
+        calls.append(request.full_url)
+        return Response(fail=len(calls) == 1)
+
+    monkeypatch.setattr(corpus.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(corpus.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(corpus, "CACHE_DIRECTORY", tmp_path)
+    assert corpus._get("https://example.org/a", {"q": "1"}) == b"body"
+    assert len(calls) == 2  # the incomplete read was retried
+    assert corpus._get("https://example.org/a", {"q": "1"}) == b"body"
+    assert len(calls) == 2  # answered from the cache
+    assert not list(tmp_path.glob("*.tmp"))  # no partial files left behind
